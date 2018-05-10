@@ -1,0 +1,152 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Developer Group Policy",
+  "Parameters" : {
+    "CustomerName" : {
+      "Description"   : "Customer Name",
+      "Type"          : "String"
+    },
+    "ProjectName" : {
+      "Description"   : "Project Name",
+      "Type"          : "String"
+    }
+  },
+  
+  "Resources" : {
+    "IAMPolicy" : {
+      "Type" : "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "Developers" ] ] },
+        "Path" : { "Fn::Join" : [ "", [ "/", { "Ref" : "ProjectName" }, "/" ] ] },
+        "PolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [
+            {
+              "Sid": "DeveloperDenies",
+              "Action": [
+                "iam:AddUserToGroup",
+                "iam:AddClientIDToOpenIDConnectProvider",
+                "iam:AttachGroupPolicy",
+                "iam:AttachUserPolicy",
+                "iam:CreateAccountAlias",
+                "iam:CreateGroup",
+                "iam:CreateOpenIDConnectProvider",
+                "iam:CreateSAMLProvider",
+                "iam:CreateUser",
+                "iam:DeleteAccountAlias",
+                "iam:DeleteAccountPasswordPolicy",
+                "iam:DeleteGroup",
+                "iam:DeleteGroupPolicy",
+                "iam:DeleteOpenIDConnectProvider",
+                "iam:DeleteSAMLProvider",
+                "iam:DeleteUser",
+                "iam:DeleteUserPolicy",
+                "iam:DetachGroupPolicy",
+                "iam:DetachUserPolicy",
+                "iam:GenerateCredentialReport",
+                "iam:GenerateServiceLastAccessedDetails",
+                "iam:GetAccountAuthorizationDetails",
+                "iam:GetAccountSummary",
+                "iam:GetContextKeysForCustomPolicy",
+                "iam:GetContextKeysForPrincipalPolicy",
+                "iam:GetCredentialReport",
+                "iam:GetOpenIDConnectProvider",
+                "iam:GetSAMLProvider",
+                "iam:PutGroupPolicy",
+                "iam:PutUserPolicy",
+                "iam:RemoveClientIDFromOpenIDConnectProvider",
+                "iam:RemoveUserFromGroup",
+                "iam:UpdateAccountPasswordPolicy",
+                "iam:UpdateGroup",
+                "iam:UpdateOpenIDConnectProviderThumbprint",
+                "iam:UpdateSAMLProvider",
+                "cloudtrail:DeleteTrail",
+                "cloudtrail:StopLogging"
+              ],
+              "Effect": "Deny",
+              "Resource": "*"
+            },
+            {
+              "Sid": "PowerUserNotActions",
+              "Effect": "Allow",
+              "NotAction": [
+                "organizations:*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "DeveloperResourceDenies",
+              "Action": "*",
+              "Effect": "Deny",
+              "Resource": [
+                { "Fn::Join" : [ "", [ "arn:aws:iam::", { "Ref" : "AWS::AccountId" }, ":role/vpc/*"]]},
+                { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "all-users-arn" ] ] } }
+              ]
+            },
+            {
+              "Sid": "BlockSpecificCFT",
+              "Action": "cloudformation:*",
+              "Effect": "Deny",
+              "Resource": { "Fn::Join" : [ "", [ "arn:aws:cloudformation:*:", { "Ref" : "AWS::AccountId" }, ":stack/", {"Ref" : "CustomerName"}, "*/*" ] ] }
+            },
+            {
+              "Sid" : "PermitListSpecifiedBuckets",
+              "Action" : [ 
+                "s3:List*"
+                ],
+              "Effect" : "Deny",
+              "NotResource" : [
+                { "Fn::ImportValue" : { "Fn::Join" : [ "", [ { "Ref" : "CustomerName" }, "-LogsBucketArn" ] ] } },
+                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "ProjectName" }, "-flowlogs" ] ] },
+                { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "DataBucketArn" ] ] } },
+                { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "ScriptsBucketArn" ] ] } },
+                { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "UsersBucketArn" ] ] } }
+                ]
+            },
+            {
+              "Sid" : "AccesstoUserBucketFiles",
+              "Action" : "s3:*",
+              "Effect" : "Deny",
+              "NotResource" : [
+                { "Fn::Join" : [ "", [ { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "UsersBucketArn" ] ] } }, "/${aws:username}/*" ] ] },
+                { "Fn::Join" : [ "", [ { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "UsersBucketArn" ] ] } }, "/shared/*" ] ] },
+                { "Fn::Join" : [ "", [ { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "DataBucketArn" ] ] } }, "/*" ] ] },
+                { "Fn::Join" : [ "", [ { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "ScriptsBucketArn" ] ] } }, "/*" ] ] }
+                ]
+            },
+            {
+              "Sid" : "PermitGetLoggingBuckets",
+              "Action" : [ 
+                "s3:Get*"
+                ],
+              "Effect" : "Deny",
+              "NotResource" : [
+                { "Fn::Join" : [ "", [ { "Fn::ImportValue" : { "Fn::Join" : [ "", [ { "Ref" : "CustomerName" }, "-LogsBucketArn" ] ] } },"/*" ] ] },
+                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "ProjectName" }, "-flowlogs/*" ] ] }
+              ]
+            },
+            {
+              "Sid" : "PreventDeleteonLogBuckets",
+              "Action" :[ "s3:Del*" ],
+              "Effect" :"Deny",
+              "Resource" : [
+                { "Fn::Join" : [ "", [ { "Fn::ImportValue" : { "Fn::Join" : [ "", [ { "Ref" : "CustomerName" }, "-LogsBucketArn" ] ] } },"/*" ] ] },
+                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "ProjectName" }, "-flowlogs/*" ] ] }
+                ]
+            }
+          ]
+        },
+        "Groups" : [ { "Fn::Join" : [ "-", [  { "Ref" : "ProjectName" }, "Developers" ] ] } ]
+      }
+    }  
+  },
+  "Outputs" : {
+    "DeveloperPolicyArn" : {
+      "Description" : "Developer Policy Arn",
+      "Value" : { "Ref" : "IAMPolicy" },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "developer-policy-arn" ] ] }
+      }
+    }
+  }
+}

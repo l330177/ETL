@@ -1,0 +1,22 @@
+[
+  {
+    "Name": "Step1: Jar and Creds",
+    "Jar": "s3://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar",
+    "Args": ["s3://ccdh-data/hadoop-emr-steps/step1-upload-jdbc-jar-and-credentials.sh"],
+    "ActionOnFailure": "CANCEL_AND_WAIT",
+    "Type": "CUSTOM_JAR"
+  },
+  {
+    "Name": "Step2: Run Hive",
+    "Args": ["-f", "s3://ccdh-data/hadoop-emr-steps/step2-hive-commands.hql"],
+    "ActionOnFailure": "CANCEL_AND_WAIT",
+    "Type": "HIVE"
+  },
+  {
+    "Name": "Step4: Run Sqoop",
+    "Jar": "s3://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar",
+    "Args": ["s3://ccdh-data/hadoop-emr-steps/step4-run-sqoop.sh"],
+    "ActionOnFailure": "CANCEL_AND_WAIT",
+    "Type": "CUSTOM_JAR"
+  }
+]

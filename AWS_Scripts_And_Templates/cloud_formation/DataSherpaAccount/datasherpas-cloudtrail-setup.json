@@ -1,0 +1,377 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Setup CloudTrail and Logging Bucket",
+  "Parameters" : {
+    "AccountName" : {
+      "Description"   : "Account Name",
+      "Type"          : "String"
+    },
+    "SNSEndPoint" : {
+      "Description" : "SNS End Point Email Adress",
+      "Type" : "String",
+      "ConstraintDescription": "Must be a valid email address at name@domain.com"
+    },
+    "SNSEndPointName" : {
+      "Description" : "SNS End Point Name (no spaces)",
+      "Type" : "String"
+    },
+    "SubscriptionProtocol" : {
+      "Type" : "String",
+      "Default" : "email",
+      "Description" : "Allowed subscription protocols",
+      "AllowedValues" : [
+        "email",
+        "email-json"
+        ]
+    }
+  },
+  "Resources" : {
+    "S3Bucket" : {
+      "DeletionPolicy" : "Retain",
+      "Type" : "AWS::S3::Bucket",
+      "Properties" : {
+        "AccessControl" : "LogDeliveryWrite",
+        "BucketName" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "logs" ] ] },
+        "CorsConfiguration" : {
+          "CorsRules": [
+            {
+              "Id": "LoggingCorsRules",
+              "AllowedHeaders": [ "Authorization" ],
+              "AllowedMethods": [ 
+                "GET",
+                "PUT",
+                "POST" ],
+              "AllowedOrigins": [ "*" ],
+              "MaxAge": "3600"
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules" : [ {
+            "Id" : "DeleteAfter90Days",
+            "Status" : "Enabled",
+            "ExpirationInDays" : "90"
+          } ]
+        },
+        "Tags" : [ 
+          { "Key" : "Account",    "Value" : { "Ref" : "AccountName" } }
+        ]
+      }
+    },
+    "S3BucketPolicy" : {
+      "Type" : "AWS::S3::BucketPolicy",
+      "Properties" : {
+        "Bucket" : {"Ref" : "S3Bucket"},
+        "PolicyDocument" : {
+          "Statement" :[
+            {
+              "Sid" : "PreventDeletes",
+              "Action" : "s3:Del*",
+              "Effect" : "Deny",
+              "Resource" : { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] },
+              "Principal" : "*"
+            },
+            {
+              "Sid" : "AllowPuts",
+              "Effect" : "Allow",
+              "Principal" : {
+                "AWS": [
+                  { "Fn::Join" : ["", ["arn:aws:iam::",{ "Ref": "AWS::AccountId" },":root"] ] },
+                  "arn:aws:iam::386209384616:root"
+                ]
+              },
+              "Action" : "s3:Put*",
+              "Resource" : { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] }
+            },
+            {
+              "Sid": "AWSCloudTrailAclCheck",
+              "Effect": "Allow",
+              "Principal": { "Service": "cloudtrail.amazonaws.com" },
+              "Action": [
+                "s3:GetBucketAcl",
+                "s3:GetBucketPolicy"
+                ],
+              "Resource": { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }
+            },
+            {
+              "Sid": "AWSCloudTrailWrite",
+              "Effect": "Allow",
+              "Principal": { "Service": "cloudtrail.amazonaws.com" },
+              "Action": "s3:PutObject",
+              "Resource": { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/CloudTrail/*"  ] ] },
+              "Condition": {
+                "StringEquals": { "s3:x-amz-acl": "bucket-owner-full-control" }
+              }
+            },
+            {
+              "Sid": "ELBLogs",
+              "Action": [
+                "s3:PutObject"
+              ],
+              "Effect": "Allow",
+              "Resource": { "Fn::Join" : [ "", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] },
+              "Principal": {
+                "AWS": [ "127311923021" ]
+              }
+            },
+            {
+              "Sid": "AWSBillingReports",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": [ "386209384616" ]
+              },
+              "Action": [
+                "s3:GetBucketAcl",
+                "s3:GetBucketPolicy"
+              ],
+              "Resource": { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }
+            }
+          ]
+        }
+      }
+    },
+    
+    "CwLogGroup" : {
+      "Type" : "AWS::Logs::LogGroup",
+      "DeletionPolicy" : "Retain",
+      "Properties" : {
+        "LogGroupName" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "cloudtrail" ] ] },
+        "RetentionInDays" : 90
+      }
+    },
+    
+    "CloudTrailRole" : {
+      "Type" : "AWS::IAM::Role",
+      "DependsOn" : "CwLogGroup",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": { "Service": "cloudtrail.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          } ]
+        },
+        "Path" : { "Fn::Join" : [ "", [ "/", { "Ref" : "AccountName"}, "/" ] ] },
+        "Policies" : [ {
+          "PolicyName" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "PermitVpcFlowLogs" ] ] },      
+          "PolicyDocument" : {
+            "Version" : "2012-10-17",
+            "Statement" : [
+              {
+                "Sid": "AWSCloudTrailCreateLogStream",
+                "Effect": "Allow",
+                "Action": [
+                    "logs:CreateLogStream"
+                ],
+                "Resource": [
+                  { "Fn::Join" : [ "", [ "arn:aws:logs:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId"}, ":log-group:", { "Ref" : "CwLogGroup" }, ":log-stream:", { "Ref" : "AWS::AccountId"}, "_CloudTrail_", { "Ref" : "AWS::Region" }, "*" ] ] }
+                ]
+              },
+              {
+              "Sid": "AWSCloudTrailPutLogEvents",
+                "Effect": "Allow",
+                "Action": [
+                  "logs:PutLogEvents"
+                ],
+                "Resource": [
+                  { "Fn::Join" : [ "", [ "arn:aws:logs:", { "Ref" : "AWS::Region" }, ":", { "Ref" : "AWS::AccountId"}, ":log-group:", { "Ref" : "CwLogGroup" }, ":log-stream:", { "Ref" : "AWS::AccountId"}, "_CloudTrail_", { "Ref" : "AWS::Region" }, "*" ] ] }
+                ]
+              }
+            ]
+          }
+        } ]
+      }
+    },
+    "CloudTrail" : {
+      "DependsOn" : [
+        "S3BucketPolicy",
+        "CwLogGroup",
+        "CloudTrailRole"
+      ],
+      "Type" : "AWS::CloudTrail::Trail",
+      "Properties" : {
+        "CloudWatchLogsLogGroupArn" : { "Fn::GetAtt" : [ "CwLogGroup", "Arn" ] },
+        "CloudWatchLogsRoleArn" : { "Fn::GetAtt" : [ "CloudTrailRole", "Arn" ] },
+        "EnableLogFileValidation" : true,
+        "IncludeGlobalServiceEvents" : true,
+        "IsLogging" : true,
+        "IsMultiRegionTrail" : true,
+        "S3BucketName" : { "Ref" : "S3Bucket" },
+        "S3KeyPrefix" : "CloudTrail",
+        "Tags" : [ 
+          { "Key" : "Account",    "Value" : { "Ref" : "AccountName" } }
+        ],     
+        "TrailName" : { "Fn::Join" : [ "", [ { "Ref" : "AccountName" }, "CloudTrail" ] ] }
+      }
+    },
+    "SNSTopic" : {
+      "Type" : "AWS::SNS::Topic",
+      "Properties" : {
+        "DisplayName" : "Internal_Account_Support",
+        "Subscription" : [ 
+          {
+            "Endpoint" : { "Ref" : "SNSEndPoint" },
+            "Protocol" : { "Ref" : "SubscriptionProtocol" }
+          }
+        ],
+        "TopicName" : { "Ref" : "SNSEndPointName" }
+      }
+    },
+    
+    "ConsoleSignInFailuresMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "DependsOn" : "CwLogGroup",
+      "Properties": {
+        "LogGroupName": { "Ref" : "CwLogGroup" },
+        "FilterPattern": "{ ($.eventName = ConsoleLogin) && ($.errorMessage = \"Failed authentication\") }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "CloudTrailMetrics",
+            "MetricName": "ConsoleSignInFailureCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "ConsoleSignInFailuresAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName" : "CloudTrailConsoleSignInFailures",
+        "AlarmDescription" : "Alarms when an unauthenticated API call is made to sign into the console.",
+        "AlarmActions" : [{ "Ref" : "SNSTopic" }],
+        "MetricName" : "ConsoleSignInFailureCount",
+        "Namespace" : "CloudTrailMetrics",
+        "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+        "EvaluationPeriods" : "1",
+        "Period" : "300",
+        "Statistic" : "Sum",
+        "Threshold" : "3"
+      }
+    },
+
+    "AuthorizationFailuresMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "DependsOn" : "CwLogGroup",
+      "Properties": {
+        "LogGroupName": { "Ref" : "CwLogGroup" },
+        "FilterPattern": "{ ($.errorCode = \"*UnauthorizedOperation\") || ($.errorCode = \"AccessDenied*\") }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "CloudTrailMetrics",
+            "MetricName": "AuthorizationFailureCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "AuthorizationFailuresAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName" : "CloudTrailAuthorizationFailures",
+        "AlarmDescription" : "Alarms when an unauthorized API call is made.",
+        "AlarmActions" : [{ "Ref" : "SNSTopic" }],
+        "MetricName" : "AuthorizationFailureCount",
+        "Namespace" : "CloudTrailMetrics",
+        "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+        "EvaluationPeriods" : "1",
+        "Period" : "300",
+        "Statistic" : "Sum",
+        "Threshold" : "1"
+      }
+    },
+    
+    "BucketPolicyMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "DependsOn" : "CwLogGroup",
+      "Properties": {
+        "LogGroupName": { "Ref" : "CwLogGroup" },
+        "FilterPattern": "{ ($.eventName = PutBucketPolicy) || ($.eventName = DeleteBucketPolicy ) }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "CloudTrailMetrics",
+            "MetricName": "BucketPolicyChangeCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "BucketPolicyChangeAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName" : "CloudTrailBucketPolicyChange",
+        "AlarmDescription" : "Alarms when a Bucket Policy is changed.",
+        "AlarmActions" : [{ "Ref" : "SNSTopic" }],
+        "MetricName" : "BucketPolicyChangeCount",
+        "Namespace" : "CloudTrailMetrics",
+        "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+        "EvaluationPeriods" : "1",
+        "Period" : "300",
+        "Statistic" : "Sum",
+        "Threshold" : "1"
+      }
+    },
+    
+    "CreateDeleteBucketMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "DependsOn" : "CwLogGroup",
+      "Properties": {
+        "LogGroupName": { "Ref" : "CwLogGroup" },
+        "FilterPattern": "{ ($.eventName = CreateBucket) || ($.eventName = DeleteBucket ) }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "CloudTrailMetrics",
+            "MetricName": "CreateDeleteBucketCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "CreateBucketAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName" : "CloudTrailBucketChange",
+        "AlarmDescription" : "Alarms when a Bucket is created or deleted.",
+        "AlarmActions" : [{ "Ref" : "SNSTopic" }],
+        "MetricName" : "CreateDeleteBucketCount",
+        "Namespace" : "CloudTrailMetrics",
+        "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+        "EvaluationPeriods" : "1",
+        "Period" : "300",
+        "Statistic" : "Sum",
+        "Threshold" : "1"
+      }
+    }
+  },
+  "Outputs" : {
+    "LogsBucket" : {
+      "Description" : "Logs Bucket Name",
+      "Value" : { "Ref" : "S3Bucket" },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "LogsBucket" ] ] }
+      }
+    },
+    "LogsBucketArn" : {
+      "Description" : "Logs Bucket Arn",
+      "Value" : { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "LogsBucketArn" ] ] }
+      }
+    },
+    "SNSTopicArn" : {
+      "Description" : "SNS Topic Arn",
+      "Value" : { "Ref" : "SNSTopic" },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "SNSTopicARN" ] ] } 
+        
+      }
+    },
+    "CwLogGroupArn" : {
+      "Description" : "CloudWatch Log Group Arn",
+      "Value" : { "Fn::GetAtt" : [ "CwLogGroup", "Arn" ] },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "AccountName" }, "LogsGroupArn" ] ] }
+      }
+    }
+  }
+}

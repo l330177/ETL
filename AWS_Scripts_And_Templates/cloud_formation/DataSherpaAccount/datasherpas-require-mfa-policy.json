@@ -1,0 +1,67 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Require MFA for IAM Users Policy",
+  "Parameters" : {
+    "CustomerName" : {
+      "Description"   : "Customer Name",
+      "Type"          : "String",
+      "Default"       : "dcsherpa"
+    },
+    "PolicyName" : {
+      "Description" : "Policy Name",
+      "Type"        : "String",
+      "Default"     : "require-mfa"
+    }
+  },
+  
+  "Resources" : {
+    "IAMPolicy" : {
+      "Type" : "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, { "Ref" : "PolicyName" } ] ] },
+        "Path" : { "Fn::Join" : [ "", [ "/", { "Ref" : "CustomerName" }, "/" ] ] },
+        "PolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [
+            {
+              "Sid": "DenyEverythingExceptForBelowUnlessMFAd",
+              "Effect": "Deny",
+              "NotAction": [
+                "iam:ListVirtualMFADevices",
+                "iam:ListMFADevices",
+                "iam:ListUsers",
+                "iam:ListAccountAliases",
+                "iam:CreateVirtualMFADevice",
+                "iam:DeactivateMFADevice",
+                "iam:DeleteVirtualMFADevice",
+                "iam:EnableMFADevice",
+                "iam:ResyncMFADevice",
+                "iam:ChangePassword",
+                "iam:CreateLoginProfile",
+                "iam:DeleteLoginProfile",
+                "iam:GetAccountPasswordPolicy",
+                "iam:GetAccountSummary",
+                "iam:GetLoginProfile",
+                "iam:UpdateLoginProfile"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "Null": { "aws:MultiFactorAuthAge": true }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  
+  "Outputs" : {
+    "PolicyArn" : {
+      "Value" : { "Ref" : "IAMPolicy" },
+      "Description" : "Managed Policy Arn",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, { "Ref" : "PolicyName" }, "arn" ] ] }
+      }
+    }
+  }
+}

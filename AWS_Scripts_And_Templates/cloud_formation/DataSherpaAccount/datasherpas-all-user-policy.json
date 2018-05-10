@@ -1,0 +1,128 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "All Users IAM Policy",
+  "Parameters" : {
+    "CustomerName" : {
+      "Description"   : "Customer Name",
+      "Type"          : "String"
+    },
+    "PolicyName" : {
+      "Description" : "Policy Name",
+      "Type"        : "String",
+      "Default"     : "all-users"
+    }
+  },
+  
+  "Resources" : {
+    "IAMPolicy" : {
+      "Type" : "AWS::IAM::ManagedPolicy",
+      "Properties" : {
+        "Description" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, { "Ref" : "PolicyName" } ] ] },
+        "Path" : { "Fn::Join" : [ "", [ "/", { "Ref" : "CustomerName" }, "/" ] ] },
+        "PolicyDocument" : {
+          "Version" : "2012-10-17",
+          "Statement" : [
+            {
+              "Sid" : "IAMUserManagement",
+              "Action" : [
+                "iam:ChangePassword",
+                "iam:CreateAccessKey",
+                "iam:DeleteAccessKey",
+                "iam:ListAccessKeys",
+                "iam:UpdateAccessKey",
+                "iam:DeactivateMFADevice",
+                "iam:EnableMFADevice",
+                "iam:ResyncMFADevice",
+                "iam:ListMFADevices",
+                "iam:GetLoginProfile",
+                "iam:UpdateLoginProfile",
+                "iam:DeleteSigningCertificate",
+                "iam:ListSigningCertificates",
+                "iam:UpdateSigningCertificate",
+                "iam:UploadSigningCertificate",
+                "iam:GetAccessKeyLastUsed",
+                "iam:GetUser"
+              ],
+              "Effect" : "Allow",
+              "Resource" : { 
+                "Fn::Join" : [ "", [ "arn:aws:iam::", { "Ref" : "AWS::AccountId" }, ":user/${aws:username}" ] ] }
+            },
+            {
+              "Sid" : "MFAManagement",
+              "Action" : [
+                "iam:CreateVirtualMFADevice",
+                "iam:DeleteVirtualMFADevice"
+              ],
+              "Effect" : "Allow",
+              "Resource" : { "Fn::Join" : [ "", [ "arn:aws:iam::", { "Ref" : "AWS::AccountId" }, ":mfa/${aws:username}" ] ] }
+            },
+            {
+              "Sid" : "NonResourceBasedPermissions",
+              "Action" : [ 
+              "iam:List*",
+              "iam:GetAccountPasswordPolicy",
+              "iam:GetGroup",
+              "iam:GetGroupPolicy",
+              "iam:GetSSHPublicKey",
+              "iam:GetServerCertificate",
+              "iam:UpdateSSHPublicKey",
+              "iam:UploadSSHPublicKey",
+              "support:*"
+              ],
+              "Effect" : "Allow",
+              "Resource" : "*"
+            },
+            {
+              "Action": "s3:PutBucketPolicy",
+              "Resource": [
+                "arn:aws:s3:::*"
+                ],
+              "Effect": "Deny",
+              "Sid": "DenyUserBucketPolicy"
+            },
+            {
+              "Action": [
+                "ec2:AttachInternetGateway",
+                "ec2:CreateInternetGateway",
+                "ec2:DeleteInternetGateway",
+                "ec2:DetachInternetGateway"
+              ],
+              "Resource": { "Fn::Join" : [ ":", [ "arn:aws:ec2", { "Ref": "AWS::Region" }, { "Ref" : "AWS::AccountId" }, "vpc/*" ] ] },
+              "Effect": "Deny",
+              "Sid": "BlockIGW"
+            },
+            {
+              "Action": [
+                  "ec2:AssociateRouteTable",
+                  "ec2:CreateRoute",
+                  "ec2:CreateRouteTable",
+                  "ec2:DeleteRoute",
+                  "ec2:DeleteRouteTable",
+                  "ec2:DescribeRouteTables",
+                  "ec2:DisassociateRouteTable",
+                  "ec2:ReplaceRoute",
+                  "ec2:ReplaceRouteTableAssociation"
+              ],
+              "Resource": [
+                  { "Fn::Join" : [ ":", [ "arn:aws:ec2", { "Ref": "AWS::Region" }, { "Ref" : "AWS::AccountId" }, "route-table/*" ] ] }
+              ],
+              "Effect": "Deny",
+              "Sid": "BlockRouteTableUpdates"
+            }
+          ]
+        }
+      }
+    }
+  },
+  
+  "Outputs" : {
+    "PolicyArn" : {
+      "Value" : { "Ref" : "IAMPolicy" },
+      "Description" : "Managed Policy Arn",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, { "Ref" : "PolicyName" }, "arn" ] ] }
+      }
+    }
+  }
+}
+    

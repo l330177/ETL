@@ -1,0 +1,88 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "IAM Standard Groups",
+  "Parameters" : {
+     "CustomerName" : {
+      "Description"   : "Customer Name",
+      "Type"          : "String"
+    },
+    "ProjectName" : {
+      "Description"   : "Project Name",
+      "Type"          : "String"
+    }
+  },
+  "Resources" : {
+    "AdminGroup" : {
+      "Type": "AWS::IAM::Group",
+      "Properties": {
+        "GroupName": { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },  "Administrators" ] ] },
+        "ManagedPolicyArns": [ 
+          "arn:aws:iam::aws:policy/AdministratorAccess",
+          { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "require-mfa-arn" ] ] } } 
+          ],
+        "Path": { "Fn::Join" : [ "", [ "/", { "Ref" :  "ProjectName" }, "/" ] ] }
+      }
+    },
+    "DeveloperGroup" : {
+      "Type": "AWS::IAM::Group",
+      "Properties": {
+        "GroupName": { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },  "Developers" ] ] },
+        "ManagedPolicyArns": [ 
+          "arn:aws:iam::aws:policy/AdministratorAccess",
+          { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "all-users-arn" ] ] } },
+          { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "require-mfa-arn" ] ] } }
+          ],
+        "Path": { "Fn::Join" : [ "", [ "/", { "Ref" :  "ProjectName" }, "/" ] ] }
+      }
+    },
+    "OpsGroup" : {
+      "Type": "AWS::IAM::Group",
+      "Properties": {
+        "GroupName": { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },  "Operations" ] ] },
+        "ManagedPolicyArns": [ 
+          "arn:aws:iam::aws:policy/AdministratorAccess",
+          { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "all-users-arn" ] ] } },
+          { "Fn::ImportValue" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "require-mfa-arn" ] ] } }
+          ],
+        "Path": { "Fn::Join" : [ "", [ "/", { "Ref" :  "ProjectName" }, "/" ] ] }
+      }
+    }
+  },
+  
+  "Outputs" : {
+    "ProjectName" : {
+      "Value"       : { "Ref" : "ProjectName" },
+      "Description" : "Project Name"
+    },
+    "AdminGroup" : {
+      "Value" : { "Ref" : "AdminGroup" },
+      "Description" : "Admin Group Name",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ 
+          { "Ref" : "ProjectName" }, "Administrators"
+          ] ]
+        }
+      }
+    },
+    "DeveloperGroup" : {
+      "Value" : { "Ref" : "DeveloperGroup" },
+      "Description" : "Developer Group Name",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ 
+          { "Ref" : "ProjectName" }, "Developers"
+          ] ]
+        }
+      }
+    },
+    "OpsGroup" : {
+      "Value" : { "Ref" : "OpsGroup" },
+      "Description" : "Operations Group Name",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ 
+          { "Ref" : "ProjectName" }, "Operations"
+          ] ]
+        }
+      }
+    }
+  }
+}

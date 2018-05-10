@@ -1,0 +1,3 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  EC2 IAM Roles, IAM Policies for future EC2 instances

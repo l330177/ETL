@@ -1,0 +1,36 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Route 53 Hosted Zone Top Level Domain",
+  "Parameters" : {
+    "CustomerName" : {
+      "Description"   : "Customer Name",
+      "Type"          : "String"
+    },
+    "DomainName" : {
+      "Description" : "Top Level domain name",
+      "Type" : "String"
+    }
+  },
+  "Resources" : {
+   "DNS" : {
+     "Type" : "AWS::Route53::HostedZone",
+      "Properties" : {
+        "HostedZoneConfig" : { "Comment" : "HostZone for Development"},
+        "Name": { "Fn::Join" : [ "", [ { "Ref" : "DomainName" }, "." ] ] },
+        "HostedZoneTags" : [ 
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } }
+        ]
+      }
+    }
+  },
+  
+  "Outputs" : {
+    "HostedZone" : {
+      "Description" : "HostZone ID",
+      "Value" : { "Ref" : "DNS" },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "CustomerName" }, "HostedZoneId" ] ] }
+      }
+    }
+  }
+}

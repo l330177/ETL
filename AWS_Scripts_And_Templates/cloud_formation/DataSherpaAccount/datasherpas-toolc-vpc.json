@@ -1,0 +1,1045 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "VPC, Subnets, IGW, Route Tables, Flow Logs (bucket, log group, firehose, lambda), NAT Gateway",
+  "Parameters" : {
+    "CustomerName" : {
+      "Description"   : "Customer Name",
+      "Type"          : "String"
+    },
+    "ProjectName" : {
+      "Description"   : "Project Name",
+      "Type"          : "String"
+    },
+    "ENV" : {
+      "Description"   : "Environment (dev, tst, qat, prd)",
+      "Type"          : "String",
+      "AllowedValues" : [
+        "dev",
+        "tst",
+        "qat",
+        "prd"
+        ],
+      "Default"       : "dev"
+    },
+    "AssignedCIDRBlock" : {
+      "Description"           : "The address space assigned to this environment.",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "InfraCIDRBlock1" : {
+      "Description"           : "The address segment used for Infra Subnet1",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "InfraCIDRBlock2" : {
+      "Description"           : "The address segment used for Infra Subnet2",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "PublicCIDRBlock1" : {
+      "Description"           : "The address segment used for Public Subnet1",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "PublicCIDRBlock2" : {
+      "Description"           : "The address segment used for Public Subnet2",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "PrivateCIDRBlock1" : {
+      "Description"           : "The address segment used for Private Subnet1",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "PrivateCIDRBlock2" : {
+      "Description"           : "The address segment used for Private Subnet2",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "ProtectedCIDRBlock1" : {
+      "Description"           : "The address segment used for Protected Subnet1",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "ProtectedCIDRBlock2" : {
+      "Description"           : "The address segment used for Protected Subnet2",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "TableauCIDRBlock1" : {
+      "Description"           : "The address segment used for Tableau Subnet1",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "TableauCIDRBlock2" : {
+      "Description"           : "The address segment used for Tableau Subnet2",
+      "Type"                  : "String",
+      "MinLength"             : 9,
+      "MaxLength"             : 18,
+      "AllowedPattern"        : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "This must be a valid IP Address range of the form x.x.x.x/x"
+    },
+    "AvailabilityZone1" : {
+      "Description"           : "The availability zone used for Private and Public Subnet 1.",
+      "Type"                  : "AWS::EC2::AvailabilityZone::Name",
+      "ConstraintDescription" : "Must be a valid availability zone for this account."
+    },
+    "AvailabilityZone2" : {
+      "Description"           : "The availability zone used for Private and Public Subnet 2.",
+      "Type"                  : "AWS::EC2::AvailabilityZone::Name",
+      "ConstraintDescription" : "Must be a valid availability zone for this account."
+    }
+  },
+  "Resources" : {
+    "S3Bucket" : {
+      "DeletionPolicy" : "Retain",
+      "Type" : "AWS::S3::Bucket",
+      "Properties" : {
+        "AccessControl" : "LogDeliveryWrite",
+        "BucketName" : { "Fn::Join" : ["-", [ { "Ref" : "ProjectName" }, "flowlogs" ] ] },
+        "LifecycleConfiguration" : {
+          "Rules" : [ {
+            "Id" : "DeleteAfter90Days",
+            "Status" : "Enabled",
+            "ExpirationInDays" : "90"
+          } ]
+        },
+        "Tags" : [ 
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "S3BucketPolicy" : {
+      "Type" : "AWS::S3::BucketPolicy",
+      "Properties" : {
+        "Bucket" : {"Ref" : "S3Bucket"},
+        "PolicyDocument" : {
+          "Statement" : [
+            {
+              "Sid" : "PreventDeletes",
+              "Action" : "s3:Del*",
+              "Effect" : "Deny",
+              "Resource" : { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] },
+              "Principal" : "*"
+            },
+            {
+              "Sid" : "AllowPuts",
+              "Effect" : "Allow",
+              "Principal" : { "AWS": { "Fn::Join" : ["", ["arn:aws:iam::",{ "Ref": "AWS::AccountId" },":root"] ] } },
+              "Action" : "s3:Put*",
+              "Resource" : { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] }
+            },
+            {
+              "Sid": "DenyBucketACL",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": [
+                "s3:PutBucketAcl",
+                "s3:PutBucketCORS"
+              ],
+              "Resource": { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }
+            },
+            {
+              "Sid": "DenyObjectACL",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": [
+                "s3:PutObjectAcl",
+                "s3:PutObjectVersionAcl"
+              ],
+              "Resource": { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] }
+            }
+          ]
+        }
+      }
+    },
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "DependsOn" : "S3Bucket",
+      "Properties" : {
+        "CidrBlock" : { "Ref" : "AssignedCIDRBlock" },
+        "EnableDnsHostnames" : "true",
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },  "vpc" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "igw" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "AttachGateway" : {
+      "Type" : "AWS::EC2::VPCGatewayAttachment",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "InternetGatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+    "InfraSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "InfraCIDRBlock1" },
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },"infrastructure-subnet-1" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "InfraSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+        "CidrBlock" : { "Ref" : "InfraCIDRBlock2" },
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },"infrastructure-subnet-2" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "PrivateSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "PrivateCIDRBlock1" },
+        "MapPublicIpOnLaunch" : false,
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "private-subnet-1" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "PrivateSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+        "CidrBlock" : { "Ref" : "PrivateCIDRBlock2" },
+        "MapPublicIpOnLaunch" : false,
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "private-subnet-2" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "ProtectedSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "ProtectedCIDRBlock1" },
+        "MapPublicIpOnLaunch" : false,
+        "Tags" : [
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },  "public-subnet-1" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "ProtectedSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+        "CidrBlock" : { "Ref" : "ProtectedCIDRBlock2" },
+        "MapPublicIpOnLaunch" : false,
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" },  "public-subnet-2" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "PublicSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "PublicCIDRBlock1" },
+        "MapPublicIpOnLaunch" : "true",
+        "Tags" : [
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "public-subnet-1" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "PublicSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+        "CidrBlock" : { "Ref" : "PublicCIDRBlock2" },
+        "MapPublicIpOnLaunch" : "true",
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "public-subnet-2" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "TableauSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "TableauCIDRBlock1" },
+        "MapPublicIpOnLaunch" : "true",
+        "Tags" : [
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "tableau-subnet-1" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "TableauSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+        "CidrBlock" : { "Ref" : "TableauCIDRBlock2" },
+        "MapPublicIpOnLaunch" : "true",
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "tableau-subnet-2" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },    
+    "InternalRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ 
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "internal-route-table" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "PublicRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [
+          { "Key" : "Name",        "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "public-route-table" ] ] } },
+          { "Key" : "Customer",    "Value" : { "Ref" : "CustomerName" } },
+          { "Key" : "Project" ,    "Value" : { "Ref" : "ProjectName" } },
+          { "Key" : "Environment", "Value" : { "Ref" : "ENV" } }
+        ]
+      }
+    },
+    "PublicRoute" : {
+      "Description" : "Adds a route to the internet gateway for the public and tableau subnets. Local routes exist by default",
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "AttachGateway",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PublicRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+    "InfraSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "InfraSubnet1" },
+        "RouteTableId" : { "Ref" : "InternalRouteTable" }
+      }
+    },
+    "InfraSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "InfraSubnet2" },
+        "RouteTableId" : { "Ref" : "InternalRouteTable" }
+      }
+    },
+    "PrivateSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet1" },
+        "RouteTableId" : { "Ref" : "InternalRouteTable" }
+      }
+    },
+    "PrivateSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet2" },
+        "RouteTableId" : { "Ref" : "InternalRouteTable" }
+      }
+    },
+    "ProtectedSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "ProtectedSubnet1" },
+        "RouteTableId" : { "Ref" : "InternalRouteTable" }
+      }
+    },
+    "ProtectedSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "ProtectedSubnet2" },
+        "RouteTableId" : { "Ref" : "InternalRouteTable" }
+      }
+    },
+    "PublicSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet1" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+    "PublicSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet2" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+    "TableauSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "TableauSubnet1" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+    "TableauSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "TableauSubnet2" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+    
+    "s3EndPoints" : {
+      "Type" : "AWS::EC2::VPCEndpoint",
+      "Properties" : {
+        "PolicyDocument" : {
+          "Version"   :"2012-10-17",
+          "Statement" : [ {
+            "Effect"    : "Allow",
+            "Principal" : "*",
+            "Action"    : ["s3:*"],
+            "Resource"  : [ "*" ]
+          }]
+        },
+        "RouteTableIds" : [ 
+          { "Ref" : "PublicRouteTable" },
+          { "Ref" : "InternalRouteTable" }
+          ],
+        "ServiceName" : { "Fn::Join": [ "", [ "com.amazonaws.", { "Ref" : "AWS::Region" }, ".s3" ] ] },
+        "VpcId" : { "Ref" : "VPC" }
+      }
+    },
+    
+    "FlowLogsRole" : {
+      "Type" : "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": { "Service": "vpc-flow-logs.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          } ]
+        },
+        "Path" : "/vpc/",
+        "Policies" : [ { 
+          "PolicyName" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PermitVpcFlowLogs" ] ] },      
+          "PolicyDocument" : {
+            "Version" : "2012-10-17",
+            "Statement" : [
+              {
+                "Sid" : "AllowFlowLogstoCloudWatch",
+                "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents",
+                  "logs:DescribeLogGroups",
+                  "logs:DescribeLogStreams"
+                ],
+                "Effect": "Allow",
+                "Resource": "*"
+              }
+            ]
+          }
+        } ]
+      }
+    },
+    "VpcFlowLogsGroup" : {
+      "Type" : "AWS::Logs::LogGroup",
+      "Properties" : {
+        "LogGroupName" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "VpcFlowLogs" ] ] },
+        "RetentionInDays" : 90
+      }
+    },
+    "VpcFlowLogs" : {
+      "Type" : "AWS::EC2::FlowLog",
+      "DependsOn" : "FlowLogsRole",
+      "Properties" : {
+        "DeliverLogsPermissionArn" : { "Fn::GetAtt" : [ "FlowLogsRole", "Arn" ] },
+        "LogGroupName" : { "Ref" : "VpcFlowLogsGroup" },
+        "ResourceId" : { "Ref" : "VPC" },
+        "ResourceType" : "VPC",
+        "TrafficType" : "ALL"
+      }
+    },
+    "LambdaRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "lambda.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/vpc/",
+        "Policies": [ {
+          "PolicyName": { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "lambda-flowlogs" ] ] },
+          "PolicyDocument": {
+            "Version" : "2012-10-17",
+            "Statement": [ 
+              {
+                "Sid" : "AllowLogging",
+                "Effect": "Allow",
+                "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogStreams"
+                ],
+                "Resource": "arn:aws:logs:*:*:*"
+              },
+              {
+                "Sid": "AllowAccesstoFlowLogsBucket",
+                "Action": [
+                  "s3:PutObjects"
+                ],
+                "Resource": [
+                  { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] },
+                  { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }
+                ],
+                "Effect": "Allow"
+              },
+              {
+                "Sid": "AllowLambdatoFirehosePut",
+                "Action": "firehose:Put*",
+                "Resource": [
+                  { "Fn::Join" : [ "", [ "arn:aws:firehose:", { "Ref" : "AWS::Region" }, ":", { "Ref" :"AWS::AccountId" }, ":deliverystream/", { "Ref" : "ProjectName" }, "-VpcFlowLogsStream" ] ] }
+                ],
+                "Effect": "Allow"
+              }
+            ]
+          }
+        } ]
+      }
+    },
+    "VpcLambdaFunction" : {
+      "Type" : "AWS::Lambda::Function",
+      "DependsOn" : "LambdaRole",
+      "Properties" : {
+        "Code" : { "ZipFile" : { "Fn::Join" : [ "", [
+          "import boto3\n",
+          "import logging\n",
+          "import json\n",
+          "import gzip\n",
+          "from StringIO import StringIO\n",
+          "\n",
+          "\n",
+          "logger = logging.getLogger()\n",
+          "logger.setLevel(logging.INFO)\n",
+          "\n",
+          "client = boto3.client('firehose')\n",
+          "\n",
+          "def lambda_handler(event, context):\n",
+          "\n",
+          "    #capture the CloudWatch log data\n",
+          "    outEvent = str(event['awslogs']['data'])\n",
+          "\n",    
+          "    #decode and unzip the log data\n",
+          "    outEvent = gzip.GzipFile(fileobj=StringIO(outEvent.decode('base64','strict'))).read()\n",
+          "\n",    
+          "    #convert the log data from JSON into a dictionary\n",
+          "    cleanEvent = json.loads(outEvent)\n",
+          "\n",    
+          "    #initiate a list\n",
+          "    s = []\n",
+          "\n",    
+          "    #set the name of the Kinesis Firehose Stream\n",
+          "    firehoseName = '",
+          { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "VpcFlowLogsStream" ] ] },
+          "'\n",
+          "\n",    
+          "    #loop through the events line by line\n",
+          "    for t in cleanEvent['logEvents']:\n",
+          "\n",        
+          "        #Transform the data and store it in the \"Data\" field. \n",
+          "        p={\n",
+          "            #Fields in FlowLogs - [version, account_id, interface_id, srcaddr, dstaddr, srcport, dstport, protocol, packets, bytes, start, stop, action, log_status]\n",
+          "            'Data': str(t['extractedFields']['account_id']) + \",\" + str(t['extractedFields']['interface_id']) + \",\" + str(t['extractedFields']['srcaddr']) + \",\" + str(t['extractedFields']['dstaddr']) + \",\" + str(t['extractedFields']['srcport']) + \",\" + str(t['extractedFields']['dstport']) + \",\" + str(t['extractedFields']['protocol']) + \",\" + str(t['extractedFields']['packets']) + \",\" + str(t['extractedFields']['bytes']) + \",\" + str(t['extractedFields']['start']) + \",\" + str(t['extractedFields']['end']) + \",\" + str(t['extractedFields']['action']) + \",\" + str(t['extractedFields']['log_status'])+\"\\n\"",
+          "\n",
+          "        }\n",
+          "\n",        
+          "        #write the data to our list\n",
+          "        s.insert(len(s),p)\n",
+          "\n",        
+          "        #limit of 500 records per batch. Break it up if you have to.\n",
+          "        if len(s) > 499:\n",
+          "            #send the response to Firehose in bulk\n",
+          "            SendToFireHose(firehoseName, s)\n",
+          "\n",
+          "            #Empty the list\n",
+          "            s = []\n",
+          "\n",    
+          "    #when done, send the response to Firehose in bulk\n",
+          "    if len(s) > 0:\n",
+          "        SendToFireHose(firehoseName, s)\n",
+          "\n",
+          "#function to send record to Kinesis Firehose\n",
+          "def SendToFireHose(streamName, records):\n",
+          "    response = client.put_record_batch(\n",
+          "        DeliveryStreamName = streamName,\n",
+          "        Records=records\n",
+          "    )\n",
+          "\n",    
+          "    #log the number of data points written to Kinesis\n",
+          "    print \"Wrote the following records to Firehose: \" + str(len(records))\n"
+          ] ]
+        } },
+        "Description" : "VPC Flow Logs to S3 via Firehose",
+        "FunctionName" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "VpcFlowLogs" ] ] },
+        "Handler" : "index.lambda_handler",
+        "MemorySize" : 128,
+        "Role" : { "Fn::GetAtt" : [ "LambdaRole", "Arn" ] },
+        "Runtime" : "python2.7",
+        "Timeout" : 60
+      }
+    },
+    "VpcLambdaInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "DependsOn" : "VpcLambdaFunction",
+      "Properties": {
+        "FunctionName" : { "Fn::GetAtt" : [ "VpcLambdaFunction", "Arn" ] },
+        "Action": "lambda:InvokeFunction",
+        "Principal": { "Fn::Join" : [ ".", [ "logs", { "Ref" : "AWS::Region" }, "amazonaws.com" ] ] },
+        "SourceAccount": { "Ref" : "AWS::AccountId" },
+        "SourceArn" : { "Fn::GetAtt" : [ "VpcFlowLogsGroup", "Arn" ] }
+      }
+    },
+    "VpcCloudWatchSubscription" : {
+      "Type" : "AWS::Logs::SubscriptionFilter",
+      "DependsOn" : [
+        "VpcLambdaInvokePermission",
+        "VpcLambdaFunction",
+        "VpcFlowLogsGroup"
+        ],
+      "Properties" : {
+        "DestinationArn" : { "Fn::GetAtt" : [ "VpcLambdaFunction", "Arn" ] },
+        "FilterPattern" : "[version, account_id, interface_id, srcaddr != \"-\", dstaddr != \"-\", srcport != \"-\", dstport != \"-\", protocol, packets, bytes, start, end, action, log_status]",
+        "LogGroupName" : { "Ref" : "VpcFlowLogsGroup" }
+      }
+    },
+    "FirehoseRole": {
+      "Type": "AWS::IAM::Role",
+      "DependsOn" : [
+        "VpcFlowLogsGroup",
+        "VpcLambdaFunction"
+        ],
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "firehose.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ],
+            "Condition": {
+              "StringEquals": {
+                "sts:ExternalId": { "Ref" : "AWS::AccountId" }
+              }
+            }
+          } ]
+        },
+        "Path": "/vpc/",
+        "Policies": [ {
+          "PolicyName": { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "flowlogs-firehose" ] ] },
+          "PolicyDocument": {
+            "Version" : "2012-10-17",
+            "Statement": [ 
+              {
+                "Sid" : "AllowFirehosetoS3",
+                "Effect": "Allow",
+                "Action": [ 
+                  "s3:AbortMultipartUpload",        
+                  "s3:GetBucketLocation",        
+                  "s3:GetObject",        
+                  "s3:ListBucket",        
+                  "s3:ListBucketMultipartUploads",
+                  "s3:PutObject"
+                ],
+                "Resource": [
+                  { "Fn::Join" : ["", [ { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }, "/*" ] ] },
+                  { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] }
+                ]
+              },
+              {
+                "Sid" : "AllowPutLogEvents",
+                "Effect": "Allow",
+                "Action": "logs:PutLogEvents",
+                "Resource": [ { "Fn::GetAtt" : [ "VpcFlowLogsGroup", "Arn" ] } ]
+              },
+              {
+                "Effect": "Allow", 
+                "Action": [
+                  "lambda:InvokeFunction", 
+                  "lambda:GetFunctionConfiguration" 
+                ],
+                "Resource": [ { "Fn::GetAtt" : [ "VpcLambdaFunction", "Arn" ] } ]
+              }
+            ]
+          }
+        } ]
+      }
+    },
+    "FirehoseFlowLogsGroup" : {
+      "Type" : "AWS::Logs::LogGroup",
+      "DeletionPolicy" : "Retain",
+      "Properties" : {
+        "LogGroupName" : { "Fn::Join" : [ "-", [ {"Ref" : "ProjectName"}, "FirehoseFlowLogs" ] ] },
+        "RetentionInDays" : 30
+      }
+    },
+    "VpcFirehoseLogStream" : {
+      "Type" : "AWS::Logs::LogStream",
+      "DependsOn" : "FirehoseFlowLogsGroup",
+      "Properties" : {
+        "LogGroupName" : { "Ref" : "FirehoseFlowLogsGroup" },
+        "LogStreamName" : "VpcS3Delivery"
+      }
+    },
+    "VpcFlowLogsFirehoseStream" : {
+      "Type" : "AWS::KinesisFirehose::DeliveryStream",
+      "DependsOn" : "VpcFirehoseLogStream",
+      "Properties" : {
+        "DeliveryStreamName" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "VpcFlowLogsStream" ] ] },
+        "S3DestinationConfiguration" : {
+          "BucketARN" : { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] },
+          "BufferingHints": {
+            "IntervalInSeconds" : 60,
+            "SizeInMBs" : 10
+          },
+          "CloudWatchLoggingOptions" : {
+            "Enabled" : true,
+            "LogGroupName" : { "Ref" : "FirehoseFlowLogsGroup" },
+            "LogStreamName" : { "Ref" : "VpcFirehoseLogStream" }
+          },
+          "CompressionFormat" : "GZIP",
+          "Prefix" : { "Fn::Join" : [ "/", [ { "Ref" : "ProjectName" }, "Vpc/" ] ] },
+          "RoleARN" : { "Fn::GetAtt" : [ "FirehoseRole","Arn" ] }
+        }
+      }
+    },
+    
+    "NATGateway1" : {
+      "Type" : "AWS::EC2::NatGateway",
+      "Properties" : {
+        "AllocationId" : { "Fn::GetAtt" : [ "EIP1", "AllocationId" ] },
+        "SubnetId" : { "Ref" : "PublicSubnet1" }
+      }
+    },
+    "EIP1" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc"
+      }
+    },
+    "NATRoute1" : {
+      "Description" : "Adds a route to the NAT gateway.",
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "NATGateway1",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "InternalRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "NatGatewayId" : { "Ref" : "NATGateway1" }
+      }
+    }
+  },
+  
+  "Outputs" : {
+    "VpcId" : {
+      "Value" : { "Ref" : "VPC" },
+      "Description" : "The VPC Id",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "VpcId" ] ] } 
+      }
+    },
+    "AssignedCIDRBlock" : {
+      "Value" : { "Ref" : "AssignedCIDRBlock" },
+      "Description" : "The address space assigned to this environment",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "CIDRBlock" ] ] } 
+      }
+    },
+    "InfraSubnetId1" : {
+      "Value" : { "Ref" : "InfraSubnet1" },
+      "Description" : "The subnet id of Private subnet 1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "InfraSubnetId1" ] ] } 
+      }
+    },
+    "InfraSubnetId2" : {
+      "Value" : { "Ref" : "InfraSubnet2" },
+      "Description" : "The subnet id of Private subnet 2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "InfraSubnetId2" ] ] } 
+      }
+    },
+    "PrivateSubnetId1" : {
+      "Value" : { "Ref" : "PrivateSubnet1" },
+      "Description" : "The subnet id of Private subnet 1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PrivateSubnetId1" ] ] } 
+      }
+    },
+    "PrivateSubnetId2" : {
+      "Value" : { "Ref" : "PrivateSubnet2" },
+      "Description" : "The subnet id of Private subnet 2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PrivateSubnetId2" ] ] } 
+      }
+    },
+    "ProtectedSubnetId1" : {
+      "Value" : { "Ref" : "ProtectedSubnet1" },
+      "Description" : "The subnet id of Protected subnet 1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "ProtectedSubnetId1" ] ] } 
+      }
+    },
+    "ProtectedSubnetId2" : {
+      "Value" : { "Ref" : "ProtectedSubnet2" },
+      "Description" : "The subnet id of Protected subnet 2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "ProtectedSubnetId2" ] ] } 
+      }
+    },
+    "PublicSubnetId1" : {
+      "Value" : { "Ref" : "PublicSubnet1" },
+      "Description" : "The subnet id of Public subnet 1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PublicSubnetId1" ] ] } 
+      }
+    },
+    "PublicSubnetId2" : {
+      "Value" : { "Ref" : "PublicSubnet2" },
+      "Description" : "The subnet id of Public subnet 2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PublicSubnetId2" ] ] } 
+      }
+    },
+    "TableauSubnetId1" : {
+      "Value" : { "Ref" : "TableauSubnet1" },
+      "Description" : "The subnet id of Tableau subnet 1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "TableauSubnetId1" ] ] } 
+      }
+    },
+    "TableauSubnetId2" : {
+      "Value" : { "Ref" : "TableauSubnet2" },
+      "Description" : "The subnet id of Tableau subnet 2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "TableauSubnetId2" ] ] } 
+      }
+    },
+    "InfraCIDRBlock1" : {
+      "Value" : { "Ref" : "InfraCIDRBlock1" },
+      "Description" : "The address segment used for Infra Subnet1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "InfraCIDRBlock1" ] ] } 
+      }
+    },
+    "InfraCIDRBlock2" : {
+      "Value" : { "Ref" : "InfraCIDRBlock2" },
+      "Description" : "The address segment used for Infra Subnet2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "InfraCIDRBlock2" ] ] } 
+      }
+    },
+    "PrivateCIDRBlock1" : {
+      "Value" : { "Ref" : "PrivateCIDRBlock1" },
+      "Description" : "The address segment used for Private Subnet1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PrivateCIDRBlock1" ] ] } 
+      }
+    },
+    "PrivateCIDRBlock2" : {
+      "Value" : { "Ref" : "PrivateCIDRBlock2" },
+      "Description" : "The address segment used for Private Subnet2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PrivateCIDRBlock2" ] ] } 
+      }
+    },
+    "ProtectedCIDRBlock1" : {
+      "Value" : { "Ref" : "ProtectedCIDRBlock1" },
+      "Description" : "The address segment used for Protected Subnet1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "ProtectedCIDRBlock1" ] ] } 
+      }
+    },
+    "ProtectedCIDRBlock2" : {
+      "Value" : { "Ref" : "ProtectedCIDRBlock2" },
+      "Description" : "The address segment used for Protected Subnet2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "ProtectedCIDRBlock2" ] ] } 
+      }
+    },
+    "PublicCIDRBlock1" : {
+      "Value" : { "Ref" : "PublicCIDRBlock1" },
+      "Description" : "The address segment used for Public Subnet1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PublicCIDRBlock1" ] ] } 
+      }
+    },
+    "PublicCIDRBlock2" : {
+      "Value" : { "Ref" : "PublicCIDRBlock2" },
+      "Description" : "The address segment used for Public Subnet2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "PublicCIDRBlock2" ] ] } 
+      }
+    },
+    "TableauCIDRBlock1" : {
+      "Value" : { "Ref" : "TableauCIDRBlock1" },
+      "Description" : "The address segment used for Tableau Subnet1",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "TableauCIDRBlock1" ] ] } 
+      }
+    },
+    "TableauCIDRBlock2" : {
+      "Value" : { "Ref" : "TableauCIDRBlock2" },
+      "Description" : "The address segment used for Tableau Subnet2",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "TableauCIDRBlock2" ] ] } 
+      }
+    },
+    "AvailabilityZone1" : {
+      "Value" : { "Ref" : "AvailabilityZone1" },
+      "Description" : "The availability zone used for all Subnet 1s",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "AZ1" ] ] } 
+      }
+    },
+    "AvailabilityZone2" : {
+      "Value" : { "Ref" : "AvailabilityZone2" },
+      "Description" : "The availability zone used for all Subnet 2s",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "AZ2" ] ] } 
+      }
+    },
+    "ExtNaclId" : {
+      "Value" : { "Fn::GetAtt" : [ "VPC", "DefaultNetworkAcl" ] },
+      "Description" : "Network Access Control List Id (NACL)",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "NACL" ] ] }
+      }
+    },
+    "InternalRouteTableId" : {
+      "Value" : { "Ref" : "InternalRouteTable" },
+      "Description" : "Internal Route Table Id",
+      "Export" : {
+        "Name" : { "Fn::Join": [ "-", [ { "Ref" : "ProjectName" }, "InternalRouteTable" ] ] }
+      }
+    },
+    "FlowLogsRoleArn" : {
+      "Value" : { "Fn::GetAtt" : [ "FlowLogsRole", "Arn" ] },
+      "Description" : "FlowLogsRole ARN",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "FlowLogsRole" ] ] }
+      }
+    },
+    "LambdaRoleArn" : {
+      "Value" : { "Fn::GetAtt" : [ "LambdaRole", "Arn" ] },
+      "Description" : "FlowLogsRole ARN",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "LambdaRole" ] ] }
+      }
+    },
+    "FirehoseRoleArn" : {
+      "Value" : { "Fn::GetAtt" : [ "FirehoseRole", "Arn" ] },
+      "Description" : "FlowLogsRole ARN",
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "FirehoseRole" ] ] }
+      }
+    },
+    "FlowLogsBucketArn" : {
+      "Description" : "Flow Logs Bucket Arn",
+      "Value" : { "Fn::GetAtt" : [ "S3Bucket", "Arn" ] },
+      "Export" : {
+        "Name" : { "Fn::Join" : [ "-", [ { "Ref" : "ProjectName" }, "FlowLogsBucketArn" ] ] }
+      }
+    }
+  }
+}

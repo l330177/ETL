@@ -1,0 +1,11 @@
+aws emr create-cluster \
+--name "ETL Cluster with CLI" \
+--release-label emr-5.11.1 \
+--applications Name=Hive Name=Sqoop Name=Tez Name=Spark \
+--auto-terminate \
+--use-default-roles \
+--ec2-attributes KeyName=admin-ccdh-demo,SubnetId=subnet-8f5013a0 \
+--instance-groups InstanceGroupType=MASTER,InstanceCount=1,InstanceType=m4.xlarge,BidPrice=.10 InstanceGroupType=CORE,InstanceCount=1,InstanceType=m4.xlarge,BidPrice=.10 \
+--steps file://./emr_steps.json \
+--tags Project="ccdh" Environment="dev" Customer="comcast" Name="ETL EMR Steps test with CLI" \
+--profile liangdatasherpa

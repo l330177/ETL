@@ -1,0 +1,26 @@
+#script runner: 
+s3://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar
+
+listing of files: 
+s3://ccdh-data/hadoop-emr-steps/step1-upload-jdbc-jar-and-credentials.sh
+s3://ccdh-data/hadoop-emr-steps/step2-hive-commands.hql
+s3://ccdh-data/hadoop-emr-steps/step3-sqoop-options.txt
+s3://ccdh-data/hadoop-emr-steps/step4-run-sqoop.sh
+
+
+sqoop list-tables --connect jdbc:postgresql://nyc-taxi-data.cx51j95vptzh.us-east-1.rds.amazonaws.com:5432/nyctaxi_csv_dump_from_emr_steps --username nyctaxidata --password-file ./sqoop-rds.jceks
+
+step1: Script runner set up 
+s3://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar
+s3://ccdh-data/hadoop-emr-steps/step1-upload-jdbc-jar-and-credentials.sh
+
+step2: Run hive 
+command-runner.jar
+s3://ccdh-data/hadoop-emr-steps/step2-hive-commands.hql
+
+step 3: Run Sqoop
+s3://us-east-1.elasticmapreduce/libs/script-runner/script-runner.jar
+s3://ccdh-data/hadoop-emr-steps/step4-run-sqoop.sh
+
+aws s3 cp s3://ccdh-data/hadoop-emr-steps/step4-run-sqoop.sh ./
+ls -al 

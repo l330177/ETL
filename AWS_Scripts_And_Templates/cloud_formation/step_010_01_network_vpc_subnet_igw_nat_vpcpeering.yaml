@@ -1,0 +1,215 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >-
+    The Shared Services VPC, lay down VPC, subnets, IGW and NAT Gateway.
+
+Parameters:
+
+  BuildDevVPC:
+    Description: "True/False build Test VPC and related resources"
+    Type: String
+    Default: True
+
+  BuildTestVPC:
+    Description: "True/False build Test VPC and related resources"
+    Type: String
+    Default: True
+
+  BuildStageVPC:
+    Description: "True/False build Test VPC and related resources"
+    Type: String
+    Default: True
+
+  BuildProdVPC:
+    Description: "True/False build Test VPC and related resources"
+    Type: String
+    Default: True
+
+Mappings:
+  VPCCIDR:
+    SharedServices:
+      "CIDR": "10.10.0.0/23"
+    Dev:
+      "CIDR": "10.10.2.0/24"
+    Test:
+      "CIDR": "10.10.3.0/24"
+    Stage:
+      "CIDR": "10.10.4.0/23"
+    Prod:
+      "CIDR": "10.10.6.0/23"
+
+  SharedServicesSubnets:
+    PublicSubnet1:
+      "CIDR": "10.10.0.0/25"
+      "AZ": "us-east-1e"
+    PrivateSubnet1:
+      "CIDR": "10.10.0.128/25"
+      "AZ": "us-east-1e"
+    PublicSubnet2:
+      "CIDR": "10.10.1.0/25"
+      "AZ": "us-east-1f"
+    PrivateSubnet2:
+      "CIDR": "10.10.1.128/25"
+      "AZ": "us-east-1f"
+
+  DevSubnets:
+    WorkstationSubnet1:
+      "CIDR": "10.10.2.128/26"
+      "AZ": "us-east-1e"
+    ETLSubnet1:
+      "CIDR": "10.10.2.0/25"
+      "AZ": "us-east-1e"
+    DBSubnet1:
+      "CIRD": "10.10.2.192/26"
+      "AZ": "us-east-1e"
+
+  TestSubnets:
+    WorkstationSubnet1:
+      "CIDR": "10.10.3.128/26"
+      "AZ": "us-east-1e"
+    ETLSubnet1:
+      "CIDR": "10.10.3.0/25"
+      "AZ": "us-east-1e"
+    DBSubnet1:
+      "CIRD": "10.10.3.192/26"
+      "AZ": "us-east-1e"
+
+  StageSubnets:
+    WorkstationSubnet1:
+      "CIDR": "10.10.3.128/26"
+      "AZ": "us-east-1e"
+    ETLSubnet1:
+      "CIDR": "10.10.3.0/25"
+      "AZ": "us-east-1e"
+    DBSubnet1:
+      "CIRD": "10.10.3.192/26"
+      "AZ": "us-east-1e"
+    DBSubnet2:
+      "CIRD": "10.10.4.192/26"
+      "AZ": "us-east-1f"
+
+  ProdSubnets:
+    WorkstationSubnet1:
+      "CIDR": "10.10.5.128/26"
+      "AZ": "us-east-1e"
+    ETLSubnet1:
+      "CIDR": "10.10.5.0/25"
+      "AZ": "us-east-1e"
+    DBSubnet1:
+      "CIRD": "10.10.5.192/26"
+      "AZ": "us-east-1e"
+    DBSubnet2:
+      "CIRD": "10.10.6.192/26"
+      "AZ": "us-east-1f"
+
+
+
+Conditions:
+  BuildDevEnv: !Equals [!Ref BuildDevVPC, "True" ]
+  BuildTestEnv: !Equals [!Ref BuildTestVPC, "True" ]
+  BuildStageEnv: !Equals [!Ref BuildStageVPC, "True" ]
+  BuildProdEnv: !Equals [!Ref BuildProdVPC, "True" ]
+
+Resources:
+
+  SharedServicesVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !FindInMap [VPCCIDR, SharedServices, CIDR]
+      Tags:
+        - Key: VPC
+          Value: SharedServices
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "VPC"]]
+
+
+  SharedServicesInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        -
+          Key: VPC
+          Value: SharedServices
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "IGW" ]]
+
+  SharedServicesInternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref SharedServicesInternetGateway
+      VpcId: !Ref SharedServicesVPC
+
+  SharedServicesNatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: SharedServicesInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  SharedServicesNatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: SharedServicesInternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  SharedServicesPublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref SharedServicesVPC
+      CidrBlock: !FindInMap [SharedServicesSubnets, PublicSubnet1, CIDR]
+      AvailabilityZone: !FindInMap [SharedServicesSubnets, PublicSubnet1, AZ]
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "PublicSubnet1"]]
+
+  SharedServicesPublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref SharedServicesVPC
+      CidrBlock: !FindInMap [SharedServicesSubnets, PublicSubnet2, CIDR]
+      AvailabilityZone: !FindInMap [SharedServicesSubnets, PublicSubnet2, AZ]
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "PublicSubnet2"]]
+
+  SharedServicesNatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - SharedServicesNatGateway1EIP
+          - AllocationId
+      SubnetId: !Ref SharedServicesPublicSubnet1
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "NAT-Gateway1"]]
+
+  SharedServicesNatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - SharedServicesNatGateway2EIP
+          - AllocationId
+      SubnetId: !Ref SharedServicesPublicSubnet2
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "NAT-Gateway2"]]
+
+Outputs:
+  SharedServicesVPC:
+    Description: VPC of the environment
+    Value: !Ref SharedServicesVPC
+
+  SharedServicesNATGateway1:
+    Description: NAT Gateway1
+    Value: !Ref SharedServicesNatGateway1
+
+  SharedServicesNATGateway2:
+    Description: NAT Gateway2
+    Value: !Ref SharedServicesNatGateway2

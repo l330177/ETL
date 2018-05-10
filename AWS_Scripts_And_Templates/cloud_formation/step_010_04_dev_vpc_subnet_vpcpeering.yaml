@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >-
+    The Dev VPC, lay down VPC, subnets, IGW and NAT Gateway.
+
+Mappings:
+  VPCCIDR:
+    SharedServices:
+      "CIDR": "10.10.0.0/23"
+    Dev:
+      "CIDR": "10.10.2.0/24"
+    Test:
+      "CIDR": "10.10.3.0/24"
+    Stage:
+      "CIDR": "10.10.4.0/23"
+    Prod:
+      "CIDR": "10.10.6.0/23"
+
+  DevSubnets:
+    WorkstationSubnet1:
+      "CIDR": "10.10.2.128/26"
+      "AZ":"us-east-1e"
+    ETLSubnet1:
+      "CIDR": "10.10.2.0/25"
+      "AZ":"us-east-1e"
+    DBSubnet1:
+      "CIRD":"10.10.2.192/26"
+      "AZ":"us-east-1e"
+
+Resources:
+
+  DevVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !FindInMap [VPCCIDR, SharedServices, CIDR]
+      Tags:
+        - Key: VPC
+          Value: SharedServices
+        -
+          Key: Name
+          Value: !Join [ "-", [ "SharedServices", "VPC"]]
+
+
+  DevWorkstationSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref SharedServicesVPC
+      CidrBlock: !FindInMap [DevSubnets, WorkstationSubnet1, CIDR]
+      AvailabilityZone: !FindInMap [DevSubnets, WorkstationSubnet1, AZ]
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "Dev", "WorkstationSubnet1"]]
+
+  DevETLSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref SharedServicesVPC
+      CidrBlock: !FindInMap [DevSubnets, ETLSubnet1, CIDR]
+      AvailabilityZone: !FindInMap [DevSubnets, ETLSubnet1, AZ]
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "Dev", "ETLSubnet1"]]
+
+  DevDBSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref SharedServicesVPC
+      CidrBlock: !FindInMap [DevSubnets, DBSubnet1, CIDR]
+      AvailabilityZone: !FindInMap [DevSubnets, DBSubnet1, AZ]
+      Tags:
+        -
+          Key: Name
+          Value: !Join [ "-", [ "Dev", "DBSubnet1"]]
+
+#make a connection peer
+
+Outputs:
+  DevVPC:
+    Description: VPC of the environment
+    Value: !Ref DevVPC

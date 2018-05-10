@@ -1,0 +1,67 @@
+Cloudformation 2/15 Demo Punch List
+
+1. Construction of 5 VPCs: Shared Services, Dev, Test, Stage, and Prod
+2. Structure within Shared Services VPC:
+    Multi-AZ deployment with allocation for option HA components.
+    Internet Gateway
+    VPC Nat Gateway
+    VPN Appliance to support encrypted network traffic located in public subnet.
+    Proxy Server with whitelist/blacklist control located in public subnet
+    Jenkins + CodeCommit integration to support CI/CD
+    VPC endpoint access to Shared Services specific S3 buckets via AWS internal network, not through Internet.
+    Route 53 Internal Hosted Zone for internal resolution
+    VPC-level Flow log is enabled
+
+3. Structure within Dev VPC:
+    Placement group for Dev Hadoop and Dataloader resources
+    Single click deployment of Dev ETL Hadoop cluster
+    Single node Deployment of a Dev Postgres database
+    VPC endpoint access to Dev specific S3 buckets via AWS internal network, not through Internet
+    Route 53 Internal Hosted Zone for internal resolution
+    VPC-level Flow log is enabled
+
+4. Structure within Test VPC:
+    Placement group for Test Hadoop and Dataloader resources
+    Single click deployment of Test ETL Hadoop cluster
+    Single node Deployment of a Test Postgres database
+    VPC endpoint access to Test specific S3 buckets via AWS internal network, not through Internet
+    Route 53 Internal Hosted Zone for internal resolution
+    VPC-level Flow log is enabled
+
+5. Structure within Stage VPC:
+    Placement group for Stage Hadoop and Dataloader resources
+    Single click deployment of Stage ETL Hadoop cluster
+    Multi-AZ Deployment of an Stage Postgres database with automatic switchover for redundancy
+    VPC endpoint access to Stage specific S3 buckets via AWS internal network, not through Internet
+    Route 53 Internal Hosted Zone for internal resolution
+    VPC-level Flow log is enabled
+
+6. Structure within Prod VPC:
+    Placement group for Prod Hadoop and Dataloader resources
+    Single click deployment of Prod ETL Hadoop cluster
+    Multi-AZ Deployment of an Prod Postgres database with automatic switchover for redundancy
+    VPC endpoint access to Prod specific S3 buckets via AWS internal network, not through Internet
+    Route 53 Internal Hosted Zone for internal resolution
+    VPC-level Flow log is enabled
+
+
+7. Account level configuration:
+    KMS for S3 object encryption and optional EBS volume encryption
+    EC2 IAM Roles are configured for Dev, Test, Stage, and Prod
+    IAM users and groups (Dev, Test, Stage, and Prod) are set.
+    CloudTrail is turned on.  All CloudTrail for all AWS-level activity is logged centrally in one S3 bucket.  Optionally CloudTrail can be exported to another account.
+    S3 Server log is turned on for all S3 buckets
+    S3 Object access log is turned for all S3 objects
+
+
+DevOps Punchlist:
+1. Integration of Jenkins with CodeCommit
+	need aws perms for codecommit users
+2. Jenkins monitor a CodeCommit repo's master branch
+	need aws perms to setup branch access
+3. On specifically tagged commit, start executing a Jenkins integration pipeline
+
+ETL Punchlist:
+Using a hadoop cluster, load all pre-2015 green cab loaded in CSV format, drop the last 2 fields, in the csv, and match the pickup lat/long to some geo ID
+Load the finished data into a PostGres database
+Terminate hadoop cluster when job is done.

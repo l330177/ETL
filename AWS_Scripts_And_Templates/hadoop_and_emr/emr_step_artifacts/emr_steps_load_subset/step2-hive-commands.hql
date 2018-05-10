@@ -1,0 +1,61 @@
+drop table trips_csv;
+CREATE EXTERNAL TABLE trips_csv (
+    trip_id                 INT,
+    vendor_id               STRING,
+    pickup_datetime         TIMESTAMP,
+    dropoff_datetime        TIMESTAMP,
+    store_and_fwd_flag      STRING,
+    rate_code_id            SMALLINT,
+    pickup_longitude        DOUBLE,
+    pickup_latitude         DOUBLE,
+    dropoff_longitude       DOUBLE,
+    dropoff_latitude        DOUBLE,
+    passenger_count         SMALLINT,
+    trip_distance           DOUBLE,
+    fare_amount             DOUBLE,
+    extra                   DOUBLE,
+    mta_tax                 DOUBLE,
+    tip_amount              DOUBLE,
+    tolls_amount            DOUBLE,
+    ehail_fee               DOUBLE,
+    improvement_surcharge   DOUBLE,
+    total_amount            DOUBLE,
+    payment_type            STRING,
+    trip_type               SMALLINT,
+    pickup                  STRING,
+    dropoff                 STRING,
+
+    cab_type                STRING,
+
+    precipitation           SMALLINT,
+    snow_depth              SMALLINT,
+    snowfall                SMALLINT,
+    max_temperature         SMALLINT,
+    min_temperature         SMALLINT,
+    average_wind_speed      SMALLINT,
+
+    pickup_nyct2010_gid     SMALLINT,
+    pickup_ctlabel          STRING,
+    pickup_borocode         SMALLINT,
+    pickup_boroname         STRING,
+    pickup_ct2010           STRING,
+    pickup_boroct2010       STRING,
+    pickup_cdeligibil       STRING,
+    pickup_ntacode          STRING,
+    pickup_ntaname          STRING,
+    pickup_puma             STRING,
+
+    dropoff_nyct2010_gid    SMALLINT,
+    dropoff_ctlabel         STRING,
+    dropoff_borocode        SMALLINT,
+    dropoff_boroname        STRING,
+    dropoff_ct2010          STRING,
+    dropoff_boroct2010      STRING,
+    dropoff_cdeligibil      STRING,
+    dropoff_ntacode         STRING,
+    dropoff_ntaname         STRING,
+    dropoff_puma            STRING
+) ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY ','
+  STORED AS TEXTFILE
+  LOCATION 's3://ccdh-data/etl-demo-data-sets/nyc_taxi_and_uber_cleaned_data_subset_csv';
